@@ -2,6 +2,8 @@
 // Copyright (c) 2024 UofU-CS3500. All rights reserved.
 // </copyright>
 
+using System.Linq.Expressions;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 namespace CS3500.Networking;
@@ -65,8 +67,22 @@ public sealed class NetworkConnection : IDisposable
     {
         get
         {
-            // TODO: implement this
-            throw new NotImplementedException();
+            try
+            {
+                // if no tcpclient found or tcpclient is not connected
+                if (_tcpClient?.Client == null || !_tcpClient.Connected)
+                    return false;
+
+                // This checks whether the socket has been closed.
+                if (_tcpClient.Client.Poll(0, SelectMode.SelectRead) && _tcpClient.Client.Available == 0)
+                    return false;
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
@@ -78,8 +94,27 @@ public sealed class NetworkConnection : IDisposable
     /// <param name="port"> The port, e.g., 11000. </param>
     public void Connect( string host, int port )
     {
-        // TODO: implement this
-        throw new NotImplementedException();
+        try
+        {
+            //try connecting the given host and port
+            _tcpClient.Connect(host, port);
+            if (IsConnected)
+            {
+                //creater reader and writer
+                NetworkStream stream = _tcpClient.GetStream();
+                _reader = new StreamReader(stream, Encoding.UTF8);
+                _writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+            }
+            else
+            {
+                throw new InvalidOperationException("cannot connect to the host.");
+            }
+        }
+        catch (Exception )
+        {
+            throw new Exception("encounterred error");
+        }
+
     }
 
 
@@ -94,8 +129,10 @@ public sealed class NetworkConnection : IDisposable
     /// <param name="message"> The string of characters to send. </param>
     public void Send( string message )
     {
-        // TODO: Implement this
-        throw new NotImplementedException();
+        if(!IsConnected || _writer == null) {
+            throw new InvalidOperationException(" invalid operation");
+        }
+        _writer.WriteLine(message);
     }
 
 
@@ -108,9 +145,13 @@ public sealed class NetworkConnection : IDisposable
     /// <returns> The contents of the message. </returns>
     public string ReadLine( )
     {
-        // TODO: implement this
-        throw new NotImplementedException();
+        if (!IsConnected || _reader == null)
+        {
+            throw new InvalidOperationException(" invalid operation");
+        }
 
+        return _reader.ReadLine()
+             ?? throw new InvalidOperationException("Connection closed by remote host.");
     }
 
     /// <summary>
@@ -119,8 +160,24 @@ public sealed class NetworkConnection : IDisposable
     /// </summary>
     public void Disconnect( )
     {
-        //TODO: implement this
-        throw new NotImplementedException();
+        if (IsConnected)
+        {
+            //disconnect
+            try
+            {
+                _writer?.Close();
+                _reader?.Close();
+                _tcpClient.Close();
+            }
+            catch (Exception e)
+            {
+                throw new InvalidOperationException("Error while disconnecting.", e);
+            }
+            //clean
+            _reader = null;
+            _writer = null;
+            _tcpClient = new TcpClient();
+        }
     }
 
     /// <summary>
