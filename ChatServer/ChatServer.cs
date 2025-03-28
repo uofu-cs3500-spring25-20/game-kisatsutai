@@ -12,15 +12,24 @@ namespace CS3500.Chatting;
 /// </summary>
 public partial class ChatServer
 {
+    /// <summary>
+    /// Records all connections with their usernames.
+    /// </summary>
+    private static readonly Dictionary<NetworkConnection, string> clients = new();
+
+    /// <summary>
+    /// used to ensure that operations on the clients dictionary are thread-safe.
+    /// </summary>
+    private static readonly object clientLock = new object();
 
     /// <summary>
     ///   The main program.
     /// </summary>
     /// <param name="args"> ignored. </param>
     /// <returns> A Task. Not really used. </returns>
-    private static void Main( string[] args )
+    private static void Main(string[] args)
     {
-        Server.StartServer( HandleConnect, 11_000 );
+        Server.StartServer(HandleConnect, 11_000);
         Console.Read(); // don't stop the program.
     }
 
@@ -32,21 +41,61 @@ public partial class ChatServer
     ///   </pre>
     /// </summary>
     ///
-    private static void HandleConnect( NetworkConnection connection )
+    private static void HandleConnect(NetworkConnection connection)
     {
         // handle all messages until disconnect.
         try
         {
-            while ( true )
+            string? username = connection.ReadLine();
+            if (username == null)
             {
-                var message = connection.ReadLine( );
+                return;
+            }
 
-                connection.Send( "thanks!" );
+            lock (clientLock)
+            {
+                clients[connection] = username;
+            }
+
+            Console.WriteLine($"[Server] {username} joined");
+
+            while (true)
+            {
+                string message = connection.ReadLine();
+                string broadMessage = $"{username}:{message}";
+
+                lock (clientLock)
+                {
+                    foreach (var line in clients)
+                    {
+                        line.Key.Send(broadMessage);
+                    }
+                }
+
+                Console.WriteLine($"[Server] Broadcasted from {username}: {message}");
+            }
+
+        }
+        catch (Exception)
+        {
+            DisconnectClient(connection);
+        }
+    }
+
+    /// <summary>
+    /// Removes the specified client and disconnects it.
+    /// </summary>
+    /// <param name="connection"></param>
+    private static void DisconnectClient(NetworkConnection connection)
+    {
+        lock (clientLock)
+        {
+            if (clients.TryGetValue(connection, out string? username))
+            {
+                Console.WriteLine($"[Server] {username} disconnected");
+                clients.Remove(connection);
             }
         }
-        catch ( Exception )
-        {
-            // do anything necessary to handle a disconnected client in here
-        }
+        connection.Disconnect();
     }
 }

@@ -14,7 +14,7 @@ namespace CS3500.Networking;
 /// </summary>
 public static class Server
 {
-    private static List<StreamWriter> clients = new();
+
 
     /// <summary>
     ///   Wait on a TcpListener for new connections. Alert the main program
@@ -25,16 +25,16 @@ public static class Server
     ///   This should be run asynchronously via a new thread.
     /// </param>
     /// <param name="port"> The port (e.g., 11000) to listen on. </param>
-    public static void StartServer( Action<NetworkConnection> handleConnect, int port )
+    public static void StartServer(Action<NetworkConnection> handleConnect, int port)
     {
-        TcpListener listener = new (IPAddress.Any, port);
+        TcpListener listener = new(IPAddress.Any, port);
         listener.Start();
         while (true)
         {
             TcpClient client = listener.AcceptTcpClient();
-            NetworkConnection conn =new NetworkConnection(client);
+            NetworkConnection conn = new NetworkConnection(client);
             Console.WriteLine("Accepted a connection.");
-            new Thread( () => handleConnect(conn)).Start();
+            new Thread(() => handleConnect(conn)).Start();
         }
 
     }
