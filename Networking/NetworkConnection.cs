@@ -1,5 +1,7 @@
 ﻿// <copyright file="NetworkConnection.cs" company="UofU-CS3500">
 // Copyright (c) 2024 UofU-CS3500. All rights reserved.
+// <authors> Edward Wang, Yuli Wang </authors>
+// <date> 03/28/2025 </date>
 // </copyright>
 
 using System.Linq.Expressions;
@@ -62,6 +64,10 @@ public sealed class NetworkConnection : IDisposable
 
     /// <summary>
     /// Gets a value indicating whether the socket is connected.
+    /// <returns>
+    /// <c>true</c> if TcpClient is connected
+    /// otherwise, <c>false</c>.
+    /// </returns>
     /// </summary>
     public bool IsConnected
     {
@@ -112,7 +118,7 @@ public sealed class NetworkConnection : IDisposable
         }
         catch (Exception)
         {
-            throw new Exception("encounterred error");
+            throw new Exception("encounterred errors");
         }
 
     }
@@ -129,6 +135,7 @@ public sealed class NetworkConnection : IDisposable
     /// <param name="message"> The string of characters to send. </param>
     public void Send(string message)
     {
+        //if no connection
         if (!IsConnected || _writer == null)
         {
             throw new InvalidOperationException(" invalid operation");
@@ -146,13 +153,14 @@ public sealed class NetworkConnection : IDisposable
     /// <returns> The contents of the message. </returns>
     public string ReadLine()
     {
+        //if no connection
         if (!IsConnected || _reader == null)
         {
-            throw new InvalidOperationException(" invalid operation");
+            throw new InvalidOperationException("invalid operation");
         }
 
         return _reader.ReadLine()
-             ?? throw new InvalidOperationException("Connection closed by remote host.");
+             ?? throw new InvalidOperationException("Connection closed.");
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
 ﻿// <copyright file="Server.cs" company="UofU-CS3500">
 // Copyright (c) 2024 UofU-CS3500. All rights reserved.
+// <authors> Edward Wang, Yuli Wang </authors>
+// <date> 03/28/2025 </date>
 // </copyright>
 
 using System.Diagnostics;
@@ -27,13 +29,16 @@ public static class Server
     /// <param name="port"> The port (e.g., 11000) to listen on. </param>
     public static void StartServer(Action<NetworkConnection> handleConnect, int port)
     {
+        //start a listener
         TcpListener listener = new(IPAddress.Any, port);
         listener.Start();
         while (true)
         {
+            //accepting client for new connection
             TcpClient client = listener.AcceptTcpClient();
             NetworkConnection conn = new NetworkConnection(client);
             Console.WriteLine("Accepted a connection.");
+            //delegate
             new Thread(() => handleConnect(conn)).Start();
         }
 

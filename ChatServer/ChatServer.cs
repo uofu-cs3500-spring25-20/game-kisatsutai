@@ -1,5 +1,7 @@
 ﻿// <copyright file="ChatServer.cs" company="UofU-CS3500">
 // Copyright (c) 2024 UofU-CS3500. All rights reserved.
+// <authors> Edward Wang, Yuli Wang </authors>
+// <date> 03/28/2025 </date>
 // </copyright>
 
 using CS3500.Networking;
@@ -47,11 +49,12 @@ public partial class ChatServer
         try
         {
             string? username = connection.ReadLine();
+            //username cannot be null
             if (username == null)
             {
                 return;
             }
-
+            //free of race conditions
             lock (clientLock)
             {
                 clients[connection] = username;
@@ -65,7 +68,7 @@ public partial class ChatServer
                 string message = connection.ReadLine();
                 string broadMessage = $"{username}:{message}";
 
-                //send msg
+                //send msg, free of race conditions
                 lock (clientLock)
                 {
                     foreach (var line in clients)
@@ -92,6 +95,7 @@ public partial class ChatServer
     {
         lock (clientLock)
         {
+            //disconnect an active client
             if (clients.TryGetValue(connection, out string? username))
             {
                 Console.WriteLine($"[Server] {username} disconnected");
