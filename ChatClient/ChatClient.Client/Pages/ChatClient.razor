@@ -9,11 +9,11 @@
 <h1>Chat Client</h1>
 
 @* Determine whether a pop-up window *@
-@if (ifUserNameInserted)
+@if (ifUserNameNotInserted)
 {
     <div class="modal-backdrop" style="position: fixed; top: 0; left: 0;
                                        width: 100%; height: 100%;
-                                       background-color: rgba(0,0,0,0.5);">
+                                       background-color:rgba(0,0,0,0.5);">
         <div class="modal-window" style="background-color: #fff; margin: 100px auto; padding: 20px; width: 300px;">
             <h3>Enter Username</h3>
             <input @bind="ProposedUsername" />
@@ -31,7 +31,7 @@
         <input id="url" disabled="@network.IsConnected" type="text" @bind="ServerNameOrAddress" />
         <label for="url"> Port: </label>
         <input id="port" disabled="@network.IsConnected" type="number" @bind="ServerPort" class="port" />
-        @if ( network.IsConnected )
+        @if (network.IsConnected)
         {
             <button class="btn btn-primary" @onclick="DisconnectFromServer">Disconnect</button>
         }
@@ -49,12 +49,16 @@
 
     <div class="input-row">
         <label for="message"> Chat: </label>
-        <input id="message" class="@grayedOut" disabled="@(disconnected)" type="text" @onchange="HandleSendMessage" />
+        <input id="message" class="@grayedOut" disabled="@(disconnected)" type="text" @bind="temporaryMessage" />
+        <button class="btn btn-primary" disabled="@(disconnected)"
+                @onclick="SendMessageButtonClick">
+            Send
+        </button>
     </div>
     <div class="input-row">
         <div class="input-col">
             <div id="Messages" class="container @grayedOut">
-                @foreach ( var line in AllMessages )
+                @foreach (var line in AllMessages)
                 {
                     <span class="themClass">
                         @line
@@ -72,12 +76,17 @@
     /// <summary>
     /// Controls whether the "Enter Username" window is visible
     /// </summary>
-    private bool ifUserNameInserted = false;
+    private bool ifUserNameNotInserted = false;
 
     /// <summary>
     /// Temporary storage for user's typed username
     /// </summary>
     private string ProposedUsername = "";
+
+    /// <summary>
+    /// Stores the text in the current input box
+    /// </summary>
+    private string temporaryMessage = "";
 
     /// <summary>
     /// Default server name
@@ -97,16 +106,18 @@
     /// <summary>
     /// Handler for the "Connect" button just show the window.
     /// </summary>
-    private void InsertUserName(){
-        ifUserNameInserted = true;
+    private void InsertUserName()
+    {
+        ifUserNameNotInserted = true;
     }
 
     /// <summary>
     /// If user cancels the username input
     /// </summary>
-    private void CancelUserName(){
+    private void CancelUserName()
+    {
         ProposedUsername = "";
-        ifUserNameInserted = false;
+        ifUserNameNotInserted = false;
     }
 
     /// <summary>
@@ -128,7 +139,7 @@
             network.Send(ProposedUsername);
 
             //for refresh
-            ifUserNameInserted = false;
+            ifUserNameNotInserted = false;
 
             //Start asynchronous reading
             new Thread(() =>
@@ -137,6 +148,7 @@
                 {
                     try
                     {
+                        //get the message sent by the server in loop
                         var message = network.ReadLine();
                         if (message == null)
                             throw new Exception("Disconnected");
@@ -149,24 +161,15 @@
                     }
                     catch
                     {
-                        
+                        break;//jump out of a loop
                     }
                 }
             }).Start();
         }
         catch
         {
-            
-        }
-    }
-    /// <summary>
-    /// The string shown in the message display area, representing all messages seen
-    /// </summary>
-    private string MessageDisplayTextAreaData
-    {
-        get
-        {
-            return string.Join( "\n", AllMessages );
+            AllMessages.Insert(0, "Failed to connect to server");
+            InvokeAsync(() => StateHasChanged());
         }
     }
 
@@ -187,15 +190,16 @@
     }
 
     /// <summary>
-    ///   When the user types a message and presses enter, send the message
-    ///   to the server.
+    /// Called when the "Send" button is clicked
+    /// Send a message and clear the text box
     /// </summary>
-    /// <param name="e"> Event data containing the message. </param>
-    private void HandleSendMessage( ChangeEventArgs e )
+    private void SendMessageButtonClick()
     {
-        if ( e.Value != null )
+        // Sent only if the connection is valid and the text is not empty
+        if (!string.IsNullOrWhiteSpace(temporaryMessage) && network.IsConnected)
         {
-            network.Send( $"{e.Value}" );
+            network.Send(temporaryMessage);
+            temporaryMessage = "";
         }
     }
 

@@ -59,20 +59,22 @@ public partial class ChatServer
 
             Console.WriteLine($"[Server] {username} joined");
 
+            //Looping to receive messages
             while (true)
             {
                 string message = connection.ReadLine();
                 string broadMessage = $"{username}:{message}";
 
+                //send msg
                 lock (clientLock)
                 {
                     foreach (var line in clients)
                     {
-                        line.Key.Send(broadMessage);
+                        line.Key.Send(broadMessage);//key is NetworkConnection
                     }
                 }
 
-                Console.WriteLine($"[Server] Broadcasted from {username}: {message}");
+                Console.WriteLine($"[Server] {broadMessage}");
             }
 
         }
