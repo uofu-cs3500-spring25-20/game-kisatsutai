@@ -8,6 +8,23 @@
 
 <h1>Chat Client</h1>
 
+@* Determine whether a pop-up window *@
+@if (ifUserNameInserted)
+{
+    <div class="modal-backdrop" style="position: fixed; top: 0; left: 0;
+                                       width: 100%; height: 100%;
+                                       background-color: rgba(0,0,0,0.5);">
+        <div class="modal-window" style="background-color: #fff; margin: 100px auto; padding: 20px; width: 300px;">
+            <h3>Enter Username</h3>
+            <input @bind="ProposedUsername" />
+            <div style="margin-top: 10px;">
+                <button class="btn btn-primary" @onclick="ConfirmUsername">Confirm</button>
+                <button class="btn btn-secondary" @onclick="CancelUserName">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
 <div id="ConnectionInputs">
     <div class="input-row">
         <label for="url"> Server Address: </label>
@@ -20,7 +37,7 @@
         }
         else
         {
-            <button class="btn btn-primary" @onclick="ConnectToServer">Connect</button>
+            <button class="btn btn-primary" @onclick="InsertUserName">Connect</button>
         }
     </div>
 
@@ -53,6 +70,16 @@
 @code
 {
     /// <summary>
+    /// Controls whether the "Enter Username" window is visible
+    /// </summary>
+    private bool ifUserNameInserted = false;
+
+    /// <summary>
+    /// Temporary storage for user's typed username
+    /// </summary>
+    private string ProposedUsername = "";
+
+    /// <summary>
     /// Default server name
     /// </summary>
     private string ServerNameOrAddress = "localhost";
@@ -67,6 +94,71 @@
     /// </summary>
     private NetworkConnection network = null!;
 
+    /// <summary>
+    /// Handler for the "Connect" button just show the window.
+    /// </summary>
+    private void InsertUserName(){
+        ifUserNameInserted = true;
+    }
+
+    /// <summary>
+    /// If user cancels the username input
+    /// </summary>
+    private void CancelUserName(){
+        ProposedUsername = "";
+        ifUserNameInserted = false;
+    }
+
+    /// <summary>
+    ///  Called when user clicks "Confirm" inside the username modal,
+    ///  Actually connects to the server, sends the username,
+    ///  starts reading messages
+    /// </summary>
+    private void ConfirmUsername()
+    {
+        if (string.IsNullOrWhiteSpace(ProposedUsername))
+            return;
+
+        try
+        {
+            //Actually connect now
+            network.Connect(ServerNameOrAddress, ServerPort);
+
+            //Send the first line as username
+            network.Send(ProposedUsername);
+
+            //for refresh
+            ifUserNameInserted = false;
+
+            //Start asynchronous reading
+            new Thread(() =>
+            {
+                while (network.IsConnected)
+                {
+                    try
+                    {
+                        var message = network.ReadLine();
+                        if (message == null)
+                            throw new Exception("Disconnected");
+
+                        message = $"{DateTime.Now:HH:mm tt} - {message}";
+                        AllMessages.Insert(0, message);
+
+                        //Update UI from another thread
+                        InvokeAsync(() => StateHasChanged());
+                    }
+                    catch
+                    {
+                        
+                    }
+                }
+            }).Start();
+        }
+        catch
+        {
+            
+        }
+    }
     /// <summary>
     /// The string shown in the message display area, representing all messages seen
     /// </summary>
@@ -90,48 +182,8 @@
     private void DisconnectFromServer()
     {
         network.Disconnect();
-    }
-
-    /// <summary>
-    /// Handler for the connect button
-    /// Attempt to connect to the server, then start an asynchronous loop
-    /// to receive and display messages.
-    /// </summary>
-    private void ConnectToServer()
-    {
-        try
-        {
-            network.Connect( ServerNameOrAddress, ServerPort );
-
-            // Communicating with the server needs to be asynchronous so that the UI thread 
-            // can continue drawing.
-            new Thread( () =>
-            {
-                while ( network.IsConnected )
-                {
-                    try
-                    {
-                        var message = network.ReadLine();
-
-                        message = $"{DateTime.Now:HH:mm tt} - {message}";
-                        AllMessages.Insert( 0, message );
-
-                        // Since we are changing the UI from another thread, we need to 
-                        // use the dispatcher for StateHasChanged
-                        InvokeAsync( () => StateHasChanged() );
-                    }
-                    catch
-                    {
-                        // add anything needed here to handle a disconnection from the server
-                    }
-                }
-            } ).Start();
-        }
-        catch
-        {
-            // add anything needed here to handle a failure to connect
-        }
-
+        AllMessages.Clear();//clear all msg
+        ProposedUsername = "";
     }
 
     /// <summary>
